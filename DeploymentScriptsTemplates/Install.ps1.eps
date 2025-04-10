@@ -1,0 +1,53 @@
+# Install.ps1 (Modified for WiX Custom Action with Heat)
+$ScriptDir = "App"
+$DeveloperPackagePath = Join-Path $ScriptDir "<%= $MSIX_FILE_NAME %>" # Still need the explicit path
+$DependencyPackagesDir = (Join-Path $ScriptDir "Dependencies")
+$DependencyPackages = @()
+
+if (Test-Path $DependencyPackagesDir) {
+    $DependencyPackages += Get-ChildItem (Join-Path $DependencyPackagesDir "*.appx") | Where-Object { $_.Mode -NotMatch "d" }
+    $DependencyPackages += Get-ChildItem (Join-Path $DependencyPackagesDir "*.msix") | Where-Object { $_.Mode -NotMatch "d" }
+
+    # OS Architecture Check.  Important to do this dynamically.
+    $ProcessorArchitecture = [System.Environment]::GetEnvironmentVariable("PROCESSOR_ARCHITECTURE")
+
+    if (($ProcessorArchitecture -eq "x86" -or $ProcessorArchitecture -eq "amd64" -or $ProcessorArchitecture -eq "arm64") -and (Test-Path (Join-Path $DependencyPackagesDir "x86"))) {
+        $DependencyPackages += Get-ChildItem (Join-Path $DependencyPackagesDir "x86\*.appx") | Where-Object { $_.Mode -NotMatch "d" }
+        $DependencyPackages += Get-ChildItem (Join-Path $DependencyPackagesDir "x86\*.msix") | Where-Object { $_.Mode -NotMatch "d" }
+    }
+    if (($ProcessorArchitecture -eq "amd64") -and (Test-Path (Join-Path $DependencyPackagesDir "x64"))) {
+        $DependencyPackages += Get-ChildItem (Join-Path $DependencyPackagesDir "x64\*.appx") | Where-Object { $_.Mode -NotMatch "d" }
+        $DependencyPackages += Get-ChildItem (Join-Path $DependencyPackagesDir "x64\*.msix") | Where-Object { $_.Mode -NotMatch "d" }
+    }
+    if (($ProcessorArchitecture -eq "arm" -or $ProcessorArchitecture -eq "arm64") -and (Test-Path (Join-Path $DependencyPackagesDir "arm"))) {
+        # $DependencyPackages += Get-ChildItem (Join-Path $DependencyPackagesDir "arm\*.appx") | Where-Object { $_.Mode -NotMatch "d" }
+        # $DependencyPackages += Get-ChildItem (Join-Path $DependencyPackagesDir "arm\*.msix") | Where-Object { $_.Mode -NotMatch "d" }
+        # Intune Win32 doesn't support arm/arm64, so we remove it from the package for size
+        Write-Host "arm is not supported with this installation method."
+        exit 1
+    }
+    if (($ProcessorArchitecture -eq "arm64") -and (Test-Path (Join-Path $DependencyPackagesDir "arm64"))) {
+        # $DependencyPackages += Get-ChildItem (Join-Path $DependencyPackagesDir "arm64\*.appx") | Where-Object { $_.Mode -NotMatch "d" }
+        # $DependencyPackages += Get-ChildItem (Join-Path $DependencyPackagesDir "arm64\*.msix") | Where-Object { $_.Mode -NotMatch "d" }
+        # Intune Win32 doesn't support arm/arm64, so we remove it from the package for size
+        Write-Host "arm64 is not supported with this installation method."
+        exit 1
+    }
+}
+
+Write-Host "Installing package..."
+try {
+    if ($DependencyPackages.FullName.Count -gt 0) {
+        Write-Host "Dependencies found:"
+        $DependencyPackages.FullName
+        Add-AppxPackage -Path $DeveloperPackagePath -DependencyPath $DependencyPackages.FullName -ForceApplicationShutdown -ErrorAction Stop
+    } else {
+        Add-AppxPackage -Path $DeveloperPackagePath -ForceApplicationShutdown -ErrorAction Stop
+    }
+    Write-Host "Package installed successfully."
+    exit 0 # Indicate success to the MSI
+}
+catch {
+    Write-Error "Error installing package: $($_.Exception.Message)"
+    exit 1 # Indicate failure to the MSI
+}

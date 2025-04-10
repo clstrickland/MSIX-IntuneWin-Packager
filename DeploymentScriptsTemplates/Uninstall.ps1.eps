@@ -1,0 +1,15 @@
+# Uninstall.ps1 (For WiX Custom Action)
+
+#Get package name
+$msixPackage = Get-AppxPackage | Where-Object {$_.PackageUserInformation.InstallState -ne 'Staged'} | Where-Object {$_.PackageFamilyName -eq "UniversitySupportHub_ptw92rvs1bhse"}
+Write-Host "Uninstalling package..."
+
+try {
+    Remove-AppxPackage -Package $msixPackage.PackageFullName -ErrorAction Stop
+    Write-Host "Package uninstalled successfully."
+    exit 0 # Indicate success to the MSI
+}
+catch {
+    Write-Error "Error uninstalling package: $($_.Exception.Message)"
+    exit 1 # Indicate failure to the MSI
+}

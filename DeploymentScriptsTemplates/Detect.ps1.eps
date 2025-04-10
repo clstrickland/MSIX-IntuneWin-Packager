@@ -1,0 +1,10 @@
+
+$msixPackage = Get-AppxPackage | Where-Object {$_.PackageUserInformation.InstallState -ne 'Staged'} | Where-Object {$_.PackageFamilyName -eq "UniversitySupportHub_ptw92rvs1bhse"}
+
+if ($msixPackage -and $msixPackage.Version -eq "<%= $APP_VERSION %>") {
+    Write-Output "Package found."
+    return 0
+} else {
+    Write-Output "Package not found."
+    return 1
+}
