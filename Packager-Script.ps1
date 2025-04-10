@@ -44,8 +44,6 @@ $ContentSource = $TempDirectory
 $SetupFile = Join-Path $TempDirectory "DeploymentScripts/Install.ps1"
 $OutputFolder = $TempDirectory #Output to temp
 
-
-
 # Run IntuneWinAppUtil.exe
 try {
     Write-Host "Util Path: $($IntuneWinAppUtilPath)"
@@ -66,28 +64,25 @@ try {
         exit 1
     }
 
-    Rename-Item -Path $TempOutputIntuneWinPath -NewName "$($MsixFilename).intunewin"
-    $TempOutputIntuneWinPath = Join-Path -Path $TempDirectory -ChildPath "$($MsixFilename).intunewin"
-
-    # Copy the final .intunewin to the original MSIX directory
-    $IntuneWinDestPath = Join-Path -Path $MsixDirectory -ChildPath "$($MsixFilename).intunewin"
-    Copy-Item -Path $TempOutputIntuneWinPath -Destination $IntuneWinDestPath -Force
-    Write-Host "Final IntuneWin file: $($IntuneWinDestPath)"
+    # Move the .intunewin file to a separate directory
+    $IntuneWinOutputDirectory = Join-Path -Path $MsixDirectory -ChildPath "IntuneWinOutput"
+    if (-not (Test-Path -Path $IntuneWinOutputDirectory -PathType Container)) {
+        New-Item -ItemType Directory -Path $IntuneWinOutputDirectory
+    }
+    $IntuneWinDestPath = Join-Path -Path $IntuneWinOutputDirectory -ChildPath "$($MsixFilename).intunewin"
+    Move-Item -Path $TempOutputIntuneWinPath -Destination $IntuneWinDestPath -Force
+    Write-Host "Final IntuneWin file moved to: $($IntuneWinDestPath)"
     Write-Output "intunewin_path=$IntuneWinDestPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
-    # Create a zip file of the DeploymentScripts folder
-    $DeploymentScriptsZipPath = Join-Path -Path $MsixDirectory -ChildPath "DeploymentScripts.zip"
-    if (Test-Path -Path $DeploymentScriptsPath -PathType Container) {
-        Write-Host "Creating zip file of DeploymentScripts at: $DeploymentScriptsZipPath"
-        Compress-Archive -Path $DeploymentScriptsPath\* -DestinationPath $DeploymentScriptsZipPath -Force
-        Write-Host "DeploymentScripts zip file created: $DeploymentScriptsZipPath"
-        Write-Output "deployment_scripts_zip=$DeploymentScriptsZipPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-    } else {
-        Write-Warning "DeploymentScripts folder not found. Skipping zip creation."
-    }
+    # Create a zip file of everything that goes into the .intunewin
+    $IntuneWinSourceZipPath = Join-Path -Path $MsixDirectory -ChildPath "$($MsixFilename)_source.zip"
+    Write-Host "Creating zip file of IntuneWin source files at: $IntuneWinSourceZipPath"
+    Compress-Archive -Path $ContentSource\* -DestinationPath $IntuneWinSourceZipPath -Force
+    Write-Host "IntuneWin source zip file created: $IntuneWinSourceZipPath"
+    Write-Output "intunewin_source_zip=$IntuneWinSourceZipPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 }
 catch {
-    Write-Error "Failed to create IntuneWin file or DeploymentScripts zip: $($_.Exception.Message)"
+    Write-Error "Failed to create IntuneWin file or source zip: $($_.Exception.Message)"
     exit 1
 }
 finally {
