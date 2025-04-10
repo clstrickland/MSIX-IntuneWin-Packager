@@ -22,7 +22,15 @@ runs:
   steps:
   # Step 1: Run the Processor script
   - name: Run Processor Script
-    run: ${{ github.action_path }}/Processor.ps1 --f:APP_VERSION=${{ inputs.app_version }} --f:MSIX_FILE_NAME=${{ inputs.msix_file_path }}
+    run: |
+      # Ensure the required module is installed
+      if (-not (Get-Module -ListAvailable -Name eps)) {
+        Write-Host "Installing required module 'eps' from PSGallery..."
+        Install-Module -Name eps -Repository PSGallery -Force -Scope CurrentUser
+      }
+
+      # Run the Processor script
+      ${{ github.action_path }}/Processor.ps1 --f:APP_VERSION=${{ inputs.app_version }} --f:MSIX_FILE_NAME=${{ inputs.msix_file_path }}
     shell: pwsh # Use PowerShell Core (available on Linux/Windows/macOS runners)
     # Or use 'powershell' if scripts require Windows PowerShell specifics
 
