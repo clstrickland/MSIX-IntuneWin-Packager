@@ -48,7 +48,10 @@ $OutputFolder = $TempDirectory #Output to temp
 
 # Run IntuneWinAppUtil.exe
 try {
+    Write-Host "Util Path: $($IntuneWinAppUtilPath)"
     & $IntuneWinAppUtilPath -c $ContentSource -s $SetupFile -o $OutputFolder -q
+    Write-Host "Breakpoint 0"
+    Write-Host (Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter "*.intunewin" -File -ErrorAction SilentlyContinue)
     Write-Host "Breakpoint 1"
     Rename-Item -Path $TempOutputIntuneWinPath -NewName "$($MsixFilename).intunewin"
     Write-Host "Breakpoint 2"
