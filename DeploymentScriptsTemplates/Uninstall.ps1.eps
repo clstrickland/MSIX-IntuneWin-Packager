@@ -1,15 +1,128 @@
-# Uninstall.ps1 (For WiX Custom Action)
+# UninstallAppxScript_Hardcoded.ps1
+#
+# Description: Uninstalls the specific 'UniversitySupportHub' AppX package.
+#              Can be run directly (e.g., by Intune/Wix) or dot-sourced
+#              to make the Uninstall-UniversitySupportHub function available.
+# Version: 1.1 (Hardcoded Package Name)
 
-#Get package name
-$msixPackage = Get-AppxPackage | Where-Object {$_.PackageUserInformation.InstallState -ne 'Staged'} | Where-Object {$_.PackageFamilyName -eq "UniversitySupportHub_ptw92rvs1bhse"}
-Write-Host "Uninstalling package..."
+#Requires -Version 5.1
 
-try {
-    Remove-AppxPackage -Package $msixPackage.PackageFullName -ErrorAction Stop
-    Write-Host "Package uninstalled successfully."
-    exit 0 # Indicate success to the MSI
+function Uninstall-UniversitySupportHub {
+    <#
+    .SYNOPSIS
+        Uninstalls the specific 'UniversitySupportHub' AppX package.
+    .DESCRIPTION
+        Finds and uninstalls the installed (non-staged) AppX package with the
+        hardcoded Package Family Name: "UniversitySupportHub_ptw92rvs1bhse".
+        Considers the package being already uninstalled as a success state (returns $true).
+        Throws a terminating error if the uninstallation command itself fails, preserving error details.
+    .EXAMPLE
+        Uninstall-UniversitySupportHub
+        # Returns $true on success or if package not found. Throws on uninstall error.
+    .EXAMPLE
+        try {
+            Uninstall-UniversitySupportHub -Verbose
+        } catch {
+            Write-Warning "Failed to uninstall UniversitySupportHub: $($_.Exception.Message)"
+        }
+    .OUTPUTS
+        System.Boolean - Returns $true if the package is successfully uninstalled or already absent.
+    .NOTES
+        Operates specifically on the hardcoded PackageFamilyName "UniversitySupportHub_ptw92rvs1bhse".
+        Requires appropriate permissions. Uses Get/Remove-AppxPackage.
+        Writes progress messages using Write-Host (or Write-Verbose if -Verbose is used).
+        Throws on critical failures (e.g., Remove-AppxPackage error), allowing the caller to catch.
+    #>
+    [CmdletBinding()] # Enables common parameters like -Verbose
+    param() # No parameters needed for this specific function
+
+    # --- Hardcoded Package Name ---
+    # Define the specific package this function works with.
+    $PackageFamilyName = "UniversitySupportHub_ptw92rvs1bhse"
+    # ----------------------------
+
+    Write-Verbose "Function: Checking for specific package '$PackageFamilyName'..."
+
+    # --- Find the package ---
+    $msixPackage = $null # Ensure it's null initially
+    try {
+        # Find only installed packages matching the hardcoded family name
+        # ErrorAction Stop ensures that if Get-AppxPackage fails (e.g., service issue), it's caught
+        $msixPackage = Get-AppxPackage | Where-Object {
+            $_.PackageUserInformation.InstallState -ne 'Staged' -and
+            $_.PackageFamilyName -eq $PackageFamilyName
+        }
+    }
+    catch {
+        # Error occurred during Get-AppxPackage itself (rare, maybe permissions/service issue)
+        $ErrorMessage = "Function: Error trying to find package '$PackageFamilyName'. Details: $($_.Exception.Message)"
+        Write-Error $ErrorMessage
+        # Re-throw the original error record to preserve details for the caller
+        throw $_
+    }
+
+    # --- Handle Package Found or Not Found ---
+    if ($null -eq $msixPackage) {
+        Write-Host "Function: Package '$PackageFamilyName' not found or already uninstalled. Considered success."
+        return $true # Successfully achieved desired state (package is absent)
+    }
+
+    # --- Attempt Uninstall ---
+    $PackageFullName = $msixPackage.PackageFullName
+    Write-Host "Function: Found installed package '$PackageFullName'. Attempting uninstall..."
+
+    try {
+        # Attempt to remove the package. -ErrorAction Stop ensures failures trigger the catch block.
+        Remove-AppxPackage -Package $PackageFullName -ErrorAction Stop
+        Write-Host "Function: Package '$PackageFullName' uninstalled successfully."
+        return $true # Explicit success
+    }
+    catch {
+        # An error occurred during Remove-AppxPackage
+        $ErrorMessage = "Function: Error uninstalling package '$PackageFullName'. Details: $($_.Exception.Message)"
+        $ErrorCode = $_.Exception.HResult
+        Write-Error "$ErrorMessage (HResult: $ErrorCode / 0x$($ErrorCode.ToString('X')))"
+        # Re-throw the original error record. The caller can inspect HResult etc. if needed.
+        throw $_
+    }
 }
-catch {
-    Write-Error "Error uninstalling package: $($_.Exception.Message)"
-    exit 1 # Indicate failure to the MSI
+
+# --- Main Script Execution Logic ---
+# This block only runs if the script is executed directly (not dot-sourced)
+if ($MyInvocation.MyCommand.Path -eq $PSCommandPath) {
+
+    Write-Host "Script running directly to uninstall UniversitySupportHub. Target system: $($env:COMPUTERNAME)"
+    # The specific package name is now hardcoded inside the function.
+
+    $FinalExitCode = 1 # Default to failure exit code
+
+    try {
+        # Call the specific function (no parameters needed)
+        # Add -Verbose here if you want verbose output during direct execution
+        Uninstall-UniversitySupportHub
+
+        # If the function completes without throwing, it's considered success
+        Write-Host "Script: Uninstall function completed without throwing errors."
+        $FinalExitCode = 0 # Set success exit code
+
+    }
+    catch {
+        # Catch terminating errors thrown by the function
+        Write-Error "Script: Caught an error during uninstall process: $($_.Exception.Message)"
+
+        # Try to get HResult from the exception for a specific exit code
+        if ($_.Exception.HResult) {
+            $FinalExitCode = [int]$_.Exception.HResult
+            Write-Host "Script: Setting exit code to HResult: $FinalExitCode (0x$($FinalExitCode.ToString('X')))"
+        } else {
+            Write-Host "Script: Using default error exit code: $FinalExitCode"
+        }
+    }
+
+    # Exit the script process with the determined code (0 for success, non-zero for failure)
+    Write-Host "Script finished. Exiting with code $FinalExitCode."
+    exit $FinalExitCode
+
 }
+# If not running directly (i.e., being dot-sourced), the script execution ends here.
+# The function Uninstall-UniversitySupportHub is now defined in the caller's scope.
