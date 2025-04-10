@@ -36,7 +36,7 @@ param(
 
 # --- Configuration ---
 $inputDirectory = Join-Path $PSScriptRoot "DeploymentScriptsTemplates"
-$outputDirectory = ".\DeploymentScripts"
+$outputDirectory = Join-Path $PSScriptRoot "DeploymentScripts"
 $templateExtension = ".eps"
 # --- End Configuration ---
 Import-Module EPS
