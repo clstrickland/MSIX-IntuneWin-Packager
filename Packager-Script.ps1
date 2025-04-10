@@ -70,8 +70,10 @@ try {
     $TempOutputIntuneWinPath = Join-Path -Path $TempDirectory -ChildPath "$($MsixFilename).intunewin"
 
     # Copy the final .intunewin to the original MSIX directory
-    Copy-Item -Path $TempOutputIntuneWinPath -Destination (Join-Path -Path $MsixDirectory -ChildPath "$($MsixFilename).intunewin") -Force
-    Write-Host "Final IntuneWin file: $(Join-Path -Path $MsixDirectory -ChildPath "$($MsixFilename).intunewin")"
+    $IntuneWinDestPath = Join-Path -Path $MsixDirectory -ChildPath "$($MsixFilename).intunewin"
+    Copy-Item -Path $TempOutputIntuneWinPath -Destination $IntuneWinDestPath -Force
+    Write-Host "Final IntuneWin file: $($IntuneWinDestPath)"
+    echo "intunewin_path=$IntuneWinDestPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 }
 catch {
     Write-Error "Failed to create IntuneWin file: $($_.Exception.Message)"
