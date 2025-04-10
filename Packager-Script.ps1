@@ -48,20 +48,23 @@ $OutputFolder = $TempDirectory #Output to temp
 
 # Run IntuneWinAppUtil.exe
 try {
-    $utiloutput = (& $IntuneWinAppUtilPath -c $ContentSource -s $SetupFile -o $OutputFolder -q | Out-String)
-
+    & $IntuneWinAppUtilPath -c $ContentSource -s $SetupFile -o $OutputFolder -q
+    Write-Host "Breakpoint 1"
     Rename-Item -Path $TempOutputIntuneWinPath -NewName "$($MsixFilename).intunewin"
+    Write-Host "Breakpoint 2"
     $TempOutputIntuneWinPath = Join-Path -Path $TempDirectory -ChildPath "$($MsixFilename).intunewin"
+    Write-Host "Breakpoint 3"
 
     # Copy the final .zip to the original msix directory.
     Copy-Item -Path $TempOutputIntuneWinPath -Destination (Join-Path -Path $MsixDirectory -ChildPath "$($MsixFilename).intunewin") -Force
+    Write-Host "Breakpoint 4"
     Write-Host (Join-Path -Path $MsixDirectory -ChildPath "$($MsixFilename).intunewin")
+    Write-Host "Breakpoint 5"
 
 
 }
 catch {
     Write-Error "Failed to create IntuneWin file: $($_.Exception.Message)"
-    Write-Error "Output: $utiloutput"
     exit 1
 }
 finally {
