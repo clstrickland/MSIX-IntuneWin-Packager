@@ -49,22 +49,29 @@ $OutputFolder = $TempDirectory #Output to temp
 # Run IntuneWinAppUtil.exe
 try {
     Write-Host "Util Path: $($IntuneWinAppUtilPath)"
-    & $IntuneWinAppUtilPath -c $ContentSource -s $SetupFile -o $OutputFolder -q
-    Write-Host "Breakpoint 0"
-    Write-Host (Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter "*.intunewin" -File -ErrorAction SilentlyContinue)
-    Write-Host "Breakpoint 1"
+    Write-Host "Running IntuneWinAppUtil.exe with the following parameters:"
+    Write-Host "  - Content Source: $ContentSource"
+    Write-Host "  - Setup File: $SetupFile"
+    Write-Host "  - Output Folder: $OutputFolder"
+
+    # Capture output and errors from IntuneWinAppUtil.exe
+    $utilOutput = & $IntuneWinAppUtilPath -c $ContentSource -s $SetupFile -o $OutputFolder -q 2>&1
+    Write-Host "IntuneWinAppUtil Output:"
+    Write-Host $utilOutput
+
+    # Check if the output file exists
+    if (-not (Test-Path -Path $TempOutputIntuneWinPath)) {
+        Write-Error "Expected output file '$TempOutputIntuneWinPath' does not exist. IntuneWinAppUtil.exe might have failed."
+        Write-Error "Output from IntuneWinAppUtil.exe: $utilOutput"
+        exit 1
+    }
+
     Rename-Item -Path $TempOutputIntuneWinPath -NewName "$($MsixFilename).intunewin"
-    Write-Host "Breakpoint 2"
     $TempOutputIntuneWinPath = Join-Path -Path $TempDirectory -ChildPath "$($MsixFilename).intunewin"
-    Write-Host "Breakpoint 3"
 
-    # Copy the final .zip to the original msix directory.
+    # Copy the final .intunewin to the original MSIX directory
     Copy-Item -Path $TempOutputIntuneWinPath -Destination (Join-Path -Path $MsixDirectory -ChildPath "$($MsixFilename).intunewin") -Force
-    Write-Host "Breakpoint 4"
-    Write-Host (Join-Path -Path $MsixDirectory -ChildPath "$($MsixFilename).intunewin")
-    Write-Host "Breakpoint 5"
-
-
+    Write-Host "Final IntuneWin file: $(Join-Path -Path $MsixDirectory -ChildPath "$($MsixFilename).intunewin")"
 }
 catch {
     Write-Error "Failed to create IntuneWin file: $($_.Exception.Message)"
