@@ -110,7 +110,7 @@ runs:
     run: |
       # Construct the full path to the MSIX file within the calling workflow's workspace
       $workspacePath = $env:GITHUB_WORKSPACE
-      $msixFullPath = Join-Path $workspacePath '${{ inputs.msix_file_path }}'
+      $msixFullPath = '${{ inputs.msix_file_path }}'
 
       # Check if the MSIX file actually exists at the expected location
       if (-not (Test-Path $msixFullPath -PathType Leaf)) {
