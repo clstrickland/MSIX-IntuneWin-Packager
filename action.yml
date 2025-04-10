@@ -122,17 +122,19 @@ runs:
       # Execute Packager-Script.ps1 located in the action's directory
       # Pass the full MSIX path as the positional argument
       # Ensure IntuneWinAppUtil.exe is findable (either via PATH update above or script logic)
-      $packageResultPath = ${{ github.action_path }}/Packager-Script.ps1 $msixFullPath
+      ${{ github.action_path }}/Packager-Script.ps1 $msixFullPath
 
-      # Check if the script returned a non-empty string (assuming it's the path)
-      if ($null -ne $packageResultPath -and $packageResultPath.Trim() -ne "") {
-        Write-Host "Packager script output (potential path): $packageResultPath"
-        # Set the step's output variable named 'package_path'
-        # This value will be assigned to the action's output 'intunewin_file_path'
-        echo "package_path=$packageResultPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-      } else {
-        Write-Error "Packager-Script.ps1 did not return the expected file path."
-        # Optionally set an empty output or fail
-        echo "package_path=" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-        exit 1 # Fail the step if the path is essential
+  # Step 4: Verify the existence of the .intunewin file
+  - name: Verify IntuneWin File
+    shell: pwsh
+    run: |
+      $intunewinPath = '${{ steps.run_packager.outputs.intunewin_path }}'
+
+      Write-Host "Verifying the existence of the IntuneWin file at: $intunewinPath"
+
+      if (-not (Test-Path $intunewinPath -PathType Leaf)) {
+        Write-Error "The IntuneWin file does not exist at the expected path: $intunewinPath"
+        exit 1
       }
+
+      Write-Host "The IntuneWin file exists at: $intunewinPath"
