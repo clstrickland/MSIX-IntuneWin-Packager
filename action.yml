@@ -23,6 +23,7 @@ runs:
   # Step 1: Run the Processor script
   - name: Run Processor Script
     run: |
+      Write-Host (Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter "*.msix" -File -ErrorAction SilentlyContinue)
       # Ensure the required module is installed
       if (-not (Get-Module -ListAvailable -Name eps)) {
         Write-Host "Installing required module 'eps' from PSGallery..."
