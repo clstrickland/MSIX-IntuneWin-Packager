@@ -26,10 +26,10 @@ if (-not (Test-Path -Path $AppDirectory -PathType Container)) {
 }
 
 # Copy the MSIX file to the App directory, renaming it to App.{original extension}
-Copy-Item -Path $MsixPath -Destination (Join-Path -Path $AppDirectory -ChildPath ("App" + $MsixExtension))
+# Copy-Item -Path $MsixPath -Destination (Join-Path -Path $AppDirectory -ChildPath ("App" + $MsixExtension))
 
 # Copy the files in the same directory (excluding the original MSIX) to the App directory
-Get-ChildItem -Path $MsixDirectory | Where-Object { $_.Name -ne $MsixFile.Name -and $_.Extension -ne ".intunewin" } | Copy-Item -Destination $AppDirectory -Recurse -Force
+Get-ChildItem -Path $MsixDirectory | Copy-Item -Destination $AppDirectory -Recurse -Force
 
 # Copy the DeploymentScripts folder to the temporary directory's root
 $DeploymentScriptsPath = Join-Path -Path $PSScriptRoot -ChildPath "DeploymentScripts"
