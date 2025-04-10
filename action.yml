@@ -29,7 +29,7 @@ runs:
         Write-Host "Installing required module 'eps' from PSGallery..."
         Install-Module -Name eps -Repository PSGallery -Force -Scope CurrentUser
       }
-      ${{ github.action_path }}/Processor.ps1 --f:APP_VERSION=${{ inputs.app_version }} --f:MSIX_FILE_NAME=${{ inputs.msix_file_path }}
+      ${{ github.action_path }}/Processor.ps1 --f:APP_VERSION=${{ inputs.app_version }} --f:MSIX_FILE_NAME=$(Split-Path -Path '${{ inputs.msix_file_path }}' -Leaf)
     shell: pwsh
 
   # Step 2: Download and Extract IntuneWinAppUtil.exe
