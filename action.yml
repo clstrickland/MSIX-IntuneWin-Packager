@@ -1,8 +1,6 @@
-# some-tool/action.yml
-
 name: 'Build IntuneWin Package'
-description: 'Processes an MSIX file, downloads IntuneWinAppUtil, runs packaging scripts, and outputs the .intunewin file path.'
-author: 'Carter Strickland' # Optional: Add author info
+description: 'Processes an MSIX file, downloads IntuneWinAppUtil, runs packaging scripts, and outputs the .intunewin file path and source zip.'
+author: 'Carter Strickland'
 
 inputs:
   msix_file_path:
@@ -16,112 +14,78 @@ outputs:
   intunewin_file_path:
     description: 'The path to the generated .intunewin file (relative to the workspace root)'
     value: ${{ steps.run_packager.outputs.intunewin_path }}
+  intunewin_source_zip:
+    description: 'The path to the zip file containing the source files used to create the .intunewin file'
+    value: ${{ steps.run_packager.outputs.intunewin_source_zip }}
 
 runs:
-  using: "composite" # Defines this as a composite action combining multiple steps
+  using: "composite"
   steps:
   # Step 1: Run the Processor script
   - name: Run Processor Script
     run: |
       Write-Host (Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter "*.msix" -File -ErrorAction SilentlyContinue)
-      # Ensure the required module is installed
       if (-not (Get-Module -ListAvailable -Name eps)) {
         Write-Host "Installing required module 'eps' from PSGallery..."
         Install-Module -Name eps -Repository PSGallery -Force -Scope CurrentUser
       }
-
-      # Run the Processor script
       ${{ github.action_path }}/Processor.ps1 --f:APP_VERSION=${{ inputs.app_version }} --f:MSIX_FILE_NAME=${{ inputs.msix_file_path }}
-    shell: pwsh # Use PowerShell Core (available on Linux/Windows/macOS runners)
-    # Or use 'powershell' if scripts require Windows PowerShell specifics
+    shell: pwsh
 
-    # Step 2: Download and Extract IntuneWinAppUtil.exe from master branch zip
+  # Step 2: Download and Extract IntuneWinAppUtil.exe
   - name: Download and Extract IntuneWinAppUtil.exe
     shell: pwsh
     run: |
-      # --- Configuration ---
       $downloadUrl = "https://github.com/microsoft/Microsoft-Win32-Content-Prep-Tool/zipball/master"
       $actionPath = "${{ github.action_path }}"
       $zipFileName = "IntuneWinAppUtil_master.zip"
       $zipOutputPath = Join-Path $actionPath $zipFileName
-      $extractBasePath = Join-Path $actionPath "extracted_tool" # Temp folder for extraction
-      $finalExeDir = $actionPath # Directory where the final .exe should live
+      $extractBasePath = Join-Path $actionPath "extracted_tool"
+      $finalExeDir = $actionPath
       $finalExePath = Join-Path $finalExeDir "IntuneWinAppUtil.exe"
 
-      # --- Execution ---
       Write-Host "Starting download of source zip from $downloadUrl"
       try {
-        # 1. Download the zip archive
         Invoke-WebRequest -Uri $downloadUrl -OutFile $zipOutputPath -UseBasicParsing -ErrorAction Stop
         Write-Host "Successfully downloaded $zipFileName to $actionPath"
-
-        # 2. Extract the archive
-        Write-Host "Extracting archive $zipOutputPath to $extractBasePath"
-        # Ensure the extraction directory exists and is empty
         if (Test-Path $extractBasePath) {
           Remove-Item -Path $extractBasePath -Recurse -Force -ErrorAction SilentlyContinue
         }
         New-Item -Path $extractBasePath -ItemType Directory -Force | Out-Null
         Expand-Archive -Path $zipOutputPath -DestinationPath $extractBasePath -Force -ErrorAction Stop
         Write-Host "Extraction complete."
-
-        # 3. Find the IntuneWinAppUtil.exe within the extracted files
-        #    GitHub zipballs usually create a root directory like 'owner-repo-commitsha'.
-        Write-Host "Searching recursively for IntuneWinAppUtil.exe within $extractBasePath..."
         $foundExe = Get-ChildItem -Path $extractBasePath -Recurse -Filter "IntuneWinAppUtil.exe" | Select-Object -First 1
-
         if ($null -eq $foundExe) {
           Write-Error "IntuneWinAppUtil.exe could not be found within the extracted archive!"
           exit 1
         }
-
-        Write-Host "Found IntuneWinAppUtil.exe at $($foundExe.FullName)"
-
-        # 4. Move the found .exe to the desired final location (action root)
         Move-Item -Path $foundExe.FullName -Destination $finalExePath -Force -ErrorAction Stop
         Write-Host "Moved IntuneWinAppUtil.exe to $finalExePath"
-
-        # 5. Add the directory containing the final .exe to the PATH environment variable for this job
-        Write-Host "Adding directory '$finalExeDir' containing the executable to GITHUB_PATH."
-        # Use Out-File for appending to GITHUB_PATH
         echo $finalExeDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-        Write-Host "GITHUB_PATH updated."
-
       } catch {
         Write-Error "An error occurred during the download/extraction process: $($_.Exception.Message)"
-        # You might want more detailed error logging here depending on the exception type
-        exit 1 # Fail the action step
+        exit 1
       } finally {
-        # 6. Clean up downloaded zip and extraction directory
         if (Test-Path $zipOutputPath) {
-          Write-Host "Removing temporary zip file: $zipOutputPath"
           Remove-Item -Path $zipOutputPath -Force -ErrorAction SilentlyContinue
         }
         if (Test-Path $extractBasePath) {
-          Write-Host "Removing temporary extraction directory: $extractBasePath"
           Remove-Item -Path $extractBasePath -Recurse -Force -ErrorAction SilentlyContinue
         }
       }
 
   # Step 3: Run the Packager script and capture its output
   - name: Run Packager Script
-    id: run_packager # Give the step an ID to reference its output
+    id: run_packager
     shell: pwsh
     run: |
-      # Construct the full path to the MSIX file within the calling workflow's workspace
       $workspacePath = $env:GITHUB_WORKSPACE
       $msixFullPath = '${{ inputs.msix_file_path }}'
-
-      # Check if the MSIX file actually exists at the expected location
       if (-not (Test-Path $msixFullPath -PathType Leaf)) {
         Write-Error "MSIX file not found at calculated path: $msixFullPath"
         exit 1
       }
-
       Write-Host "Running Packager-Script.ps1 with MSIX file: $msixFullPath"
-      # Execute Packager-Script.ps1 located in the action's directory
-      # Pass the full MSIX path as the positional argument
-      # Ensure IntuneWinAppUtil.exe is findable (either via PATH update above or script logic)
       ${{ github.action_path }}/Packager-Script.ps1 $msixFullPath
 
   # Step 4: Verify the existence of the .intunewin file
@@ -129,12 +93,21 @@ runs:
     shell: pwsh
     run: |
       $intunewinPath = '${{ steps.run_packager.outputs.intunewin_path }}'
-
       Write-Host "Verifying the existence of the IntuneWin file at: $intunewinPath"
-
       if (-not (Test-Path $intunewinPath -PathType Leaf)) {
         Write-Error "The IntuneWin file does not exist at the expected path: $intunewinPath"
         exit 1
       }
-
       Write-Host "The IntuneWin file exists at: $intunewinPath"
+
+  # Step 5: Verify the existence of the source zip file
+  - name: Verify IntuneWin Source Zip
+    shell: pwsh
+    run: |
+      $intunewinSourceZip = '${{ steps.run_packager.outputs.intunewin_source_zip }}'
+      Write-Host "Verifying the existence of the IntuneWin source zip file at: $intunewinSourceZip"
+      if (-not (Test-Path $intunewinSourceZip -PathType Leaf)) {
+        Write-Error "The IntuneWin source zip file does not exist at the expected path: $intunewinSourceZip"
+        exit 1
+      }
+      Write-Host "The IntuneWin source zip file exists at: $intunewinSourceZip"
