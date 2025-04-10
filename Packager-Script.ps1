@@ -41,7 +41,7 @@ if (Test-Path -Path $DeploymentScriptsPath -PathType Container) {
 $IntuneWinAppUtilPath = Join-Path -Path $PSScriptRoot -ChildPath "IntuneWinAppUtil.exe"
 $TempOutputIntuneWinPath = Join-Path -Path $TempDirectory -ChildPath "Install.intunewin" # Create IntuneWin in temp.
 $ContentSource = $TempDirectory
-$SetupFile = "DeploymentScripts/Install.ps1"
+$SetupFile = "./DeploymentScripts/Install.ps1"
 $OutputFolder = $TempDirectory #Output to temp
 
 
