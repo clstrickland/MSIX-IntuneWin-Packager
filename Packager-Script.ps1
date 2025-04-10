@@ -73,10 +73,21 @@ try {
     $IntuneWinDestPath = Join-Path -Path $MsixDirectory -ChildPath "$($MsixFilename).intunewin"
     Copy-Item -Path $TempOutputIntuneWinPath -Destination $IntuneWinDestPath -Force
     Write-Host "Final IntuneWin file: $($IntuneWinDestPath)"
-    echo "intunewin_path=$IntuneWinDestPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+    Write-Output "intunewin_path=$IntuneWinDestPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+    # Create a zip file of the DeploymentScripts folder
+    $DeploymentScriptsZipPath = Join-Path -Path $MsixDirectory -ChildPath "DeploymentScripts.zip"
+    if (Test-Path -Path $DeploymentScriptsPath -PathType Container) {
+        Write-Host "Creating zip file of DeploymentScripts at: $DeploymentScriptsZipPath"
+        Compress-Archive -Path $DeploymentScriptsPath\* -DestinationPath $DeploymentScriptsZipPath -Force
+        Write-Host "DeploymentScripts zip file created: $DeploymentScriptsZipPath"
+        Write-Output "deployment_scripts_zip=$DeploymentScriptsZipPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+    } else {
+        Write-Warning "DeploymentScripts folder not found. Skipping zip creation."
+    }
 }
 catch {
-    Write-Error "Failed to create IntuneWin file: $($_.Exception.Message)"
+    Write-Error "Failed to create IntuneWin file or DeploymentScripts zip: $($_.Exception.Message)"
     exit 1
 }
 finally {
